@@ -31,7 +31,7 @@ SECRET_KEY = "django-insecure-o2&(r+5u89ibc(94ixlvjl&l@2%qh9&(duk_q)6x2ib@acmk88
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'api.User'
 
@@ -111,7 +111,6 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-
 }
 
 

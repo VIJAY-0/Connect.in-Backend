@@ -24,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
             'bio',
             'followers_count',
             'following_count',
-            'is_following'
+            'is_following',
         )
         extra_kwargs = {
             'password': {'write_only': True},
@@ -32,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
             'profile_picture': {'required': False},
             'bio': {'required': False}
         }
-
+        
     def create(self, validated_data):
         user = User.objects.create_user(
             username=validated_data['username'],
@@ -76,7 +76,7 @@ class PostSerializer(serializers.ModelSerializer):
     """
     user = UserSerializer(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
-    likes_count = serializers.SerializerMethodField()
+    likes_count = serializers.IntegerField(source='likes.count', read_only = True)
     is_liked = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
 
@@ -94,7 +94,7 @@ class PostSerializer(serializers.ModelSerializer):
             'comments'
         )
         read_only_fields = ('id', 'user', 'created_at', 'likes_count', 'is_liked')
-
+    
     def get_likes_count(self, obj):
         return obj.likes.count()
 

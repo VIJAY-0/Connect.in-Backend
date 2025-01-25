@@ -28,14 +28,12 @@ class User(AbstractUser):
 
 
 
-# backend/api/models.py (Add these models)
 class Post(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='posts', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='posts/')
     caption = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     likes = models.ManyToManyField(User, related_name='liked_posts', blank=True)
-    comments = models.ManyToManyField(User, related_name='comments_posts', blank=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -49,18 +47,17 @@ class Post(models.Model):
 
     @property
     def comments_count(self):
-        return self.comments.count()
-    
+        return self.comments.count()  # We can keep this property since we'll have a reverse relation    
+
 
 class Comment(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='comments', on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, related_name='comments', on_delete=models.CASCADE)
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return f"{self.user.username}'s comment on {self.post}"
-
 
 
 

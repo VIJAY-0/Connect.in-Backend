@@ -1,6 +1,5 @@
     # backend/friends/views.py
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 
 from rest_framework.permissions import IsAuthenticated , AllowAny
@@ -12,6 +11,7 @@ from api.models import User
 
 from Friends.models import FriendRequest
 from Friends.serializers import FriendRequestSerializer, FriendListSerializer
+from Friends.serializers import SearchUserSerializer
 from api.serializers import UserSerializer
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -24,28 +24,14 @@ def search_users(request):
     """Search for users by username or email"""
     query = request.GET.get('q', '').strip()
     print("Recieved Query:",query)
-    if not query:
-        return Response({'error': 'Please provide a search query'}, 
-                      status=status.HTTP_400_BAD_REQUEST)
     
     users = User.objects.filter(
-        Q(username__icontains=query) |
-        Q(email__icontains=query)
+        Q(username__icontains=query) | Q(email__icontains=query)
     ).exclude(id=request.user.id)[:10]  # Limit to 10 results
-    serializer = UserSerializer(users, many=True ,context ={'request':request})
-
-
-
-    print(users)
-    print(serializer.data)
     
-    # return Response(users)
+    
+    serializer = SearchUserSerializer(users, many=True ,context ={'request':request})
     return Response(serializer.data)
-
-
-
-
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -54,14 +40,12 @@ def send_friend_request(request, user_id):
     try:
         receiver = User.objects.get(id=user_id)
         
-        # Check if users are already friends
         if request.user in receiver.followers.all():
             return Response(
                 {'error': 'You are already friends with this user'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Check if a request already exists
+                    
         if FriendRequest.objects.filter(
             sender=request.user,
             receiver=receiver,
@@ -138,7 +122,6 @@ def get_friend_requests(request):
     )
     serializer = FriendRequestSerializer(received_requests, many=True , context={'request':request})
     return Response(serializer.data)
-
 
 
 

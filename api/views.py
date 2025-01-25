@@ -149,7 +149,7 @@ def get_feed_posts(request):
     # Get posts from users that the current user follows and their own posts
     followed_users = request.user.following.all()
     posts = Post.objects.filter(
-        models.Q(user__in=followed_users) | models.Q(user=request.user)
+        models.Q(user__in=followed_users) #| models.Q(user=request.user)
     ).order_by('-created_at')
     
     serializer = PostSerializer(
@@ -300,10 +300,8 @@ def add_comment(request, post_id):
         )
     
     
-    
-    
-    
-    
+
+
     
     
     

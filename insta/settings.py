@@ -72,9 +72,8 @@ MIDDLEWARE = [
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite default port
+    'https://connect-in-frontend.onrender.com',
 ]
-
 
 CORS_ALLOW_CREDENTIALS = True
 

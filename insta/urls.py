@@ -24,6 +24,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('api/', include('api.urls')),
     path('api/friends/', include('Friends.urls')),
+    # path('api/c', include('Circles.urls')),
 ]
 
 

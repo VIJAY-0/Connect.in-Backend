@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "api",
     "Friends",
+    "Circles",
 ]
 
 MIDDLEWARE = [
@@ -71,9 +72,8 @@ MIDDLEWARE = [
 ]
 
 
-CORS_ALLOWED_ORIGINS = [
-    'https://connect-in-frontend.onrender.com',
-]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 

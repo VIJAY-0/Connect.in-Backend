@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 from .models import User, Post, Comment
+from Circles.models import Circle , CircleMembership
 
 class UserSerializer(serializers.ModelSerializer):
     """
@@ -53,6 +54,9 @@ class UserSerializer(serializers.ModelSerializer):
             return request.user in obj.followers.all()
         return False
 
+
+
+
 class CommentSerializer(serializers.ModelSerializer):
     """
     Serializer for the Comment model.
@@ -69,6 +73,7 @@ class CommentSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('id', 'user', 'created_at')
 
+
 class PostSerializer(serializers.ModelSerializer):
     """
     Serializer for the Post model.
@@ -79,7 +84,11 @@ class PostSerializer(serializers.ModelSerializer):
     likes_count = serializers.IntegerField(source='likes.count', read_only = True)
     is_liked = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
-
+    
+    # circle = serializers.PrimaryKeyRelatedField(
+    #     queryset=Circle.objects.all(), required=False, allow_null=True
+    # )
+    
     class Meta:
         model = Post
         fields = (
@@ -91,7 +100,8 @@ class PostSerializer(serializers.ModelSerializer):
             'created_at',
             'likes_count',
             'is_liked',
-            'comments'
+            'comments',
+            # 'visibility_type', 'circle',
         )
         read_only_fields = ('id', 'user', 'created_at', 'likes_count', 'is_liked')
     
@@ -114,3 +124,16 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         validated_data['user'] = request.user
         return super().create(validated_data)
+    
+    # def validate(self, data):
+    #     visibility_type = data.get('visibility_type')
+    #     circle = data.get('circle', None)
+    #     author = self.context['request'].user
+
+    #     if visibility_type == 'CIRCLE' and not circle:
+    #         raise serializers.ValidationError("Circle must be specified when visibility is 'CIRCLE'.")
+
+    #     if circle and not CircleMembership.objects.filter(circle=circle, user=author).exists():
+    #         raise serializers.ValidationError("You must be a member of the circle to post in it.")
+
+    #     return data

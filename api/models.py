@@ -24,6 +24,7 @@ class User(AbstractUser):
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
     bio = models.TextField(max_length=500, blank=True)
     following = models.ManyToManyField('self', symmetrical=False, related_name='followers')
+    
 
 
 
@@ -34,6 +35,17 @@ class Post(models.Model):
     caption = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     likes = models.ManyToManyField(User, related_name='liked_posts', blank=True)
+    
+    
+    # VISIBILITY_CHOICES = [
+    #     ('PUBLIC', 'Public'),
+    #     ('FRIENDS', 'Friends'),
+    #     ('CIRCLE', 'Circle'),
+    # ]
+
+    # visibility_type = models.CharField(max_length=7, choices=VISIBILITY_CHOICES, default='PUBLIC')
+    # circle = models.ForeignKey('Circles.Circle', null=True, blank=True, related_name='posts', on_delete=models.CASCADE)
+    
 
     class Meta:
         ordering = ['-created_at']
@@ -58,8 +70,6 @@ class Comment(models.Model):
     
     def __str__(self):
         return f"{self.user.username}'s comment on {self.post}"
-
-
 
 # class Likes(models.Model):
 #     user = models.ForeignKey(User, on_delete=models.CASCADE)

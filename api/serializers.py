@@ -1,7 +1,7 @@
 # backend/api/serializers.py
 
 from rest_framework import serializers
-from .models import User, Post, Comment
+from .models import User, Post, Comment , Wall
 from Circles.models import Circle , CircleMembership
 
 class UserSerializer(serializers.ModelSerializer):
@@ -56,7 +56,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 
-
 class CommentSerializer(serializers.ModelSerializer):
     """
     Serializer for the Comment model.
@@ -72,6 +71,7 @@ class CommentSerializer(serializers.ModelSerializer):
             'created_at'
         )
         read_only_fields = ('id', 'user', 'created_at')
+
 
 
 class PostSerializer(serializers.ModelSerializer):
@@ -101,6 +101,7 @@ class PostSerializer(serializers.ModelSerializer):
             'likes_count',
             'is_liked',
             'comments',
+            'wall',
             # 'visibility_type', 'circle',
         )
         read_only_fields = ('id', 'user', 'created_at', 'likes_count', 'is_liked')
@@ -119,21 +120,18 @@ class PostSerializer(serializers.ModelSerializer):
         if obj.image and hasattr(obj.image, 'url'):
             return request.build_absolute_uri(obj.image.url)
         return None
-
-    def create(self, validated_data):
-        request = self.context.get('request')
-        validated_data['user'] = request.user
-        return super().create(validated_data)
     
-    # def validate(self, data):
-    #     visibility_type = data.get('visibility_type')
-    #     circle = data.get('circle', None)
-    #     author = self.context['request'].user
+    
+class WallSerializer(serializers.ModelSerializer):
+    thumbnails = serializers.SerializerMethodField()
 
-    #     if visibility_type == 'CIRCLE' and not circle:
-    #         raise serializers.ValidationError("Circle must be specified when visibility is 'CIRCLE'.")
+    class Meta:
+        model = Wall
+        fields = ['id', 'name', 'thumbnails']
 
-    #     if circle and not CircleMembership.objects.filter(circle=circle, user=author).exists():
-    #         raise serializers.ValidationError("You must be a member of the circle to post in it.")
-
-    #     return data
+    def get_thumbnails(self, obj):
+        request = self.context.get('request')
+        return [
+            request.build_absolute_uri(thumbnail.image.url) if request else thumbnail.image.url
+            for thumbnail in obj.thumbnails.all()
+        ]

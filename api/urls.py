@@ -12,11 +12,13 @@ urlpatterns = [
     path('posts/<int:pk>/', views.post_detail, name='post-detail'),
     path('posts/<int:pk>/like/', views.like_unlike_post, name='like-unlike-post'),
     path('posts/<int:post_id>/comment/', views.add_comment, name='like-unlike-post'),
+    
 ]
 
 urlpatterns += [
     path('profile/<str:username>/', views.profile_detail, name='profile-detail'),
     path('profile/<str:username>/follow/', views.follow_user, name='follow-user'),
+    path('wall/<int:wall_id>/posts/', views.get_wall_posts, name='wall-posts'),
+    path('createwall/', views.add_wall, name='wall-add'),
 ]
-
 

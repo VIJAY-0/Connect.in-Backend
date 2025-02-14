@@ -6,9 +6,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import UserSerializer
 from rest_framework.permissions import AllowAny
-from .models import User, Post
-from .serializers import UserSerializer, PostSerializer  ,CommentSerializer
-
+from .models import User, Post , Wall , WallThumbnail
+from .serializers import UserSerializer, PostSerializer  ,CommentSerializer , WallSerializer
 
 
 @api_view(['POST'])
@@ -35,7 +34,7 @@ def login(request):
         return Response({'error': 'Please provide both username and password'},
                       status=status.HTTP_400_BAD_REQUEST)
     
-    
+
     user = authenticate(username=username, password=password)
     
     if user:
@@ -48,12 +47,12 @@ def login(request):
     return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-
 # backend/api/views.py (Add these profile views)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from .models import User, Post, Wall
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
@@ -62,10 +61,15 @@ def profile_detail(request, username):
     
     if request.method == 'GET':
         serializer = UserSerializer(user, context={'request': request})
-        posts = Post.objects.filter(user=user)
+        walls = Wall.objects.filter(user=user)
+        walls_serializer = WallSerializer(walls,many=True ,context={'request': request})
+        
+        posts = Post.objects.filter(user=user , wall__isnull=True)
         post_serializer = PostSerializer(posts, many=True, context={'request': request})
+        
         return Response({
             'user': serializer.data,
+            'walls':walls_serializer.data,
             'posts': post_serializer.data,
             'posts_count': posts.count(),
             'followers_count': user.followers.count(),
@@ -85,6 +89,48 @@ def profile_detail(request, username):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def add_wall(request):
+    data = request.data
+    name = data.get('name')
+    thumbnails = request.FILES.getlist('thumbnails')
+    images = request.FILES.getlist('images')
+    
+    if not name:
+        return Response({'error': 'Name is required'}, status=400)
+    
+    wall = Wall.objects.create(user = request.user , name=name)
+    
+    for thumbnail in thumbnails:
+        WallThumbnail.objects.create(wall=wall, image=thumbnail)  # Storing multiple thumbnails
+    
+    for image in images:
+        wall.images.create(image=image)  # Assuming related name 'images' in Image model
+    
+    serializer = WallSerializer(wall, context={'request': request})
+    
+    return Response({'message': 'Wall added successfully', 'wall': serializer.data}, status=201)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_wall_posts(request, wall_id):
+    print("wall id ",wall_id)
+    wall = get_object_or_404(Wall, id=wall_id)
+    posts = Post.objects.filter(wall=wall)
+    serializer = PostSerializer(posts, many=True, context={'request': request})
+    
+    return Response({
+        'wall': wall.name,
+        'wall_id':wall.id,
+        'posts': serializer.data,
+        'posts_count': posts.count(),
+    })
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def follow_user(request, username):
     user_to_follow = get_object_or_404(User, username=username)
     if request.user != user_to_follow:
@@ -96,12 +142,6 @@ def follow_user(request, username):
             action = 'followed'
         return Response({'status': f'Successfully {action}'})
     return Response({'error': 'You cannot follow yourself'}, status=400)
-
-
-
-
-
-
 
 
 from rest_framework import status
@@ -117,6 +157,30 @@ from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 from .models import Post, User
 from .serializers import PostSerializer, UserSerializer
+from django.db import transaction
+
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+# def create_post(request):
+#     """
+#     Create a new post with image and caption
+#     """
+#     serializer = PostSerializer(
+#         data=request.data,
+#         context={'request': request}
+#     )
+#     print(request.data)
+#     print(request.data)
+    
+#     if serializer.is_valid():
+#         post =serializer.save(user=request.user)
+#         print(f"Post created. Image path: {post.image.path}")  # Debug print
+
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+#     print(serializer.errors)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['POST'])
@@ -124,19 +188,62 @@ from .serializers import PostSerializer, UserSerializer
 @parser_classes([MultiPartParser, FormParser])
 def create_post(request):
     """
-    Create a new post with image and caption
+    Create a new post with image(s) and caption.
+    Supports multiple image uploads in a single request.
     """
-    serializer = PostSerializer(
-        data=request.data,
-        context={'request': request}
-    )
+    caption = request.data.get('caption', '')
+    wall_id = request.data.get('wall')
     
-    if serializer.is_valid():
-        post =serializer.save(user=request.user)
-        print(f"Post created. Image path: {post.image.path}")  # Debug print
+    print(request.data)
+    # Validate 'wall' parameter
+    if not wall_id:
+        return Response({'error': 'Wall ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        wall = Wall.objects.get(id=wall_id)
+    except Wall.DoesNotExist:
+        return Response({'error': 'Wall not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # Retrieve images; supports multiple images under the key 'images'
+    images = request.FILES.getlist('images')
+    
+    if not images:
+        return Response({'error': 'At least one image is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Optional: Limit the number of images per request
+    MAX_IMAGES = 100
+    if len(images) > MAX_IMAGES:
+        return Response({'error': f'You can upload a maximum of {MAX_IMAGES} images at once.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    created_posts = []
+    errors = []
+    
+    with transaction.atomic():
+        for idx, image in enumerate(images):
+            data = {
+                'image': image,
+                'caption': caption,
+                'wall': wall_id
+            }
+            serializer = PostSerializer(data=data, context={'request': request})
+            if serializer.is_valid():
+                try:
+                    post = serializer.save(user=request.user)
+                    created_posts.append(serializer.data)
+                except Exception as e:
+                    # Log the exception as needed
+                    errors.append({'image': image.name, 'error': str(e)})
+            else:
+                errors.append({'image': image.name, 'errors': serializer.errors})
+        
+        if errors:
+            # If any errors occurred, rollback the transaction
+            transaction.set_rollback(True)
+            return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response({'posts': created_posts}, status=status.HTTP_201_CREATED)
+
+
 
 
 
@@ -158,8 +265,6 @@ def get_feed_posts(request):
         context={'request': request}
     )
     return Response(serializer.data)
-
-
 
 
 
@@ -197,6 +302,8 @@ def post_detail(request, pk):
     if request.method == 'DELETE':
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -273,8 +380,6 @@ def serve_image(request, folder, filename):
     except Exception as e:
         print(f"Error serving image: {str(e)}")
         return HttpResponseNotFound('Error serving image')
-    
-
 
 
 @api_view(['POST'])
